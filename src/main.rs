@@ -36,6 +36,7 @@ impl Photo {
     fn sim(&self, other: &Self) -> u32 {
         sim_tags(&self.tags, &other.tags)
     }
+    fn sim_slide(&self, slide: &Slide) -> u32 { sim_tags(&self.tags, &slide.tags)}
 }
 
 const INPUT_A: &str = "data/a_example.txt";
@@ -67,6 +68,62 @@ impl Slide {
             photo_2: Some(photo2),
         }
     }
+}
+
+fn solve_greedy_smarter_vert_merge(mut input: Input) -> Vec<Slide> {
+    let mut slides = Vec::with_capacity(input.photos.len());
+
+    let first_photo = input.photos.pop_front().unwrap();
+    if first_photo.is_vert {
+        let (second_idx, _) = input.photos.par_iter().enumerate().max_by_key(|(_, ph)| ph.sim(&first_photo)).unwrap(); // could be tweaked.
+        let second_photo = input.photos.swap_remove_back(second_idx).unwrap();
+        slides.push(Slide::from_two(first_photo, second_photo));
+    } else {
+        slides.push(Slide::from_one(first_photo));
+    }
+
+    let total_len = input.photos.len();
+
+    let mut last_len = total_len;
+    let mut timer = Instant::now();
+
+    while input.photos.len() > 0 {
+        let current_len = input.photos.len();
+        if current_len % 1024 == 0 {
+            let elapsed = timer.elapsed().as_micros();
+            let mus_per_iter = elapsed / (last_len as u128 - current_len as u128);
+            let est_time = mus_per_iter*(current_len as u128)/1000000;
+
+            println!("{}/{}  mus_per_iter: {}, est_time: {} s", current_len, total_len, mus_per_iter, est_time);
+
+            last_len = current_len;
+            timer = Instant::now();
+        }
+
+        let current_slide = &slides[slides.len() - 1];
+
+        let (idx, _) = input.photos.par_iter().enumerate().max_by_key(|(_, ph)| ph.sim_slide(current_slide)).unwrap();
+        let first_photo = input.photos.swap_remove_back(idx).unwrap();
+        if !first_photo.is_vert {
+            slides.push(Slide::from_one(first_photo))
+        } else {
+            let (idx, _) = input.photos.par_iter().enumerate().max_by_key(|(_, ph)| {
+                let mut sum_tag = HashSet::with_capacity(first_photo.tags.len() + ph.tags.len());
+                for t in &first_photo.tags {
+                    sum_tag.insert(*t);
+                }
+                for t in &ph.tags {
+                    sum_tag.insert(*t);
+                }
+                sim_tags(&sum_tag, &current_slide.tags)
+            }).unwrap();
+            let second_photo = input.photos.swap_remove_back(idx).unwrap();
+            slides.push(Slide::from_two(first_photo, second_photo))
+        }
+
+    }
+
+    slides
 }
 
 fn solve_greedy(mut input: Input) -> Vec<Slide> {
@@ -180,8 +237,8 @@ fn score(slide: Vec<Slide>) -> u32{
 
 fn main() {
     let time = Instant::now();
-    let input = read_input(INPUT_B);
-    let sol = solve_greedy(input);
+    let input = read_input(INPUT_E);
+    let sol = solve_greedy_smarter_vert_merge(input);
     println!("final score {}", score(sol));
 
     println!("{}", time.elapsed().as_millis());
