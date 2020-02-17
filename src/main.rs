@@ -1,4 +1,5 @@
-use std::collections::{VecDeque, HashMap, HashSet};
+use std::collections::{VecDeque};
+use fnv::{FnvHashMap as HashMap, FnvHashSet as HashSet};
 use std::time::Instant;
 use rand::seq::SliceRandom;
 use rayon::prelude::*;
@@ -108,7 +109,7 @@ fn solve_greedy_smarter_vert_merge(mut input: Input) -> Vec<Slide> {
             slides.push(Slide::from_one(first_photo))
         } else {
             let (idx, _) = input.photos.par_iter().enumerate().max_by_key(|(_, ph)| {
-                let mut sum_tag = HashSet::with_capacity(first_photo.tags.len() + ph.tags.len());
+                let mut sum_tag = HashSet::with_capacity_and_hasher(first_photo.tags.len() + ph.tags.len(), Default::default());
                 for t in &first_photo.tags {
                     sum_tag.insert(*t);
                 }
@@ -199,7 +200,7 @@ fn solve_greedy(mut input: Input) -> Vec<Slide> {
 
 fn score(slide: Vec<Slide>) -> u32{
 
-    let mut unique_map = HashSet::new();
+    let mut unique_map = HashSet::default();
 
 //    for s in &slide {
 //        print!("{} ", s.photo_1.idx);
@@ -252,13 +253,13 @@ fn read_input(name: &str) -> Input {
     let n: usize = strs.pop_front().unwrap().parse().unwrap();
     let mut photos = Vec::with_capacity(n);
 
-    let mut tag_index = HashMap::new();
+    let mut tag_index = HashMap::default();
     let mut max_index = 0;
 
     for idx in 0..n {
         let is_vert = strs.pop_front().unwrap() == "V";
         let tag_n = strs.pop_front().unwrap().parse::<usize>().unwrap();
-        let mut tags = HashSet::with_capacity(tag_n);
+        let mut tags = HashSet::with_capacity_and_hasher(tag_n, Default::default());
         for _ in 0..tag_n {
             let tag_str = strs.pop_front().unwrap().to_string();
 
